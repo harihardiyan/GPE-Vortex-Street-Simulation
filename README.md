@@ -1,105 +1,109 @@
 
+# Superfluid Vortex Dynamics: A Monolithic JAX Pipeline
+### *High-Fidelity Quantum Hydrodynamics Simulation & Diagnostic Suite*
 
-# High-Performance GPE Simulation: Superfluid Flow and Vortex Shedding in 2D Channels
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Framework: JAX](https://img.shields.io/badge/Framework-JAX-9cf.svg?logo=google&logoColor=white)](https://jax.readthedocs.io/)
+[![Field: Physics](https://img.shields.io/badge/Field-Quantum--Hydrodynamics-blue.svg)]()
 
-[![JAX](https://img.shields.io/badge/Accelerated-JAX-orange.svg)](https://github.com/google/jax)
-[![Physics](https://img.shields.io/badge/Physics-Bose--Einstein%20Condensates-blue.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+## 📝 Overview
 
-## Overview
+This project is a personal exploration into the fascinating world of **Bose-Einstein Condensates (BEC)** and **Superfluidity**. It implements a monolithic pipeline for solving the 2D Gross-Pitaevskii Equation (GPE) using high-performance, GPU-accelerated computing.
 
-This repository contains a high-performance numerical solver for the **2D Gross-Pitaevskii Equation (GPE)**, optimized for modern hardware accelerators (GPUs and TPUs) using the **JAX** framework. 
+The "Monolith" is designed not just to simulate, but to **audit** and **analyze**. It tracks the emergence of quantum vortices behind obstacles, calculates drag forces with spectral precision, and verifies physical invariants (mass and energy) to ensure the simulation remains "physically honest." 
 
-The simulation models the dynamics of a superfluid (such as a Bose-Einstein Condensate) flowing through a channel and encountering a bluff obstacle. It captures complex hydrodynamics, including the transition from laminar flow to the formation of a **Von Kármán vortex street** in a quantum fluid.
+*Disclaimer: This tool was developed through a high-level orchestration of AI assistance and personal interest in computational physics. While I do not claim to be a physicist, the metrics and audits included are intended to meet rigorous research standards.*
 
-## Physical Model
+---
 
-The dynamics of the condensate wavefunction $\psi(\mathbf{r}, t)$ are governed by the time-dependent Gross-Pitaevskii Equation:
+## 🚀 Key Technical Features
 
-$$i \hbar \frac{\partial \psi}{\partial t} = \left( -\frac{\hbar^2}{2m}\nabla^2 + V_{ext}(\mathbf{r}) + g|\psi(\mathbf{r}, t)|^2 \right) \psi(\mathbf{r}, t)$$
+### 1. The Numerical "Engine"
+*   **Split-Step Fourier Method (SSFM):** Uses Strang splitting to ensure second-order accuracy in time, preserving the unitary nature of the wavefunction.
+*   **ITP Relaxation:** Employs Imaginary Time Propagation to find the stable ground state (Thomas-Fermi profile) before starting real-time dynamics.
+*   **JAX Acceleration:** Leverages XLA (Accelerated Linear Algebra) for JIT compilation, allowing the simulation to run at high speeds on CPUs, GPUs, or TPUs.
 
-Where:
-- $-\frac{\hbar^2}{2m}\nabla^2$ is the kinetic energy operator.
-- $V_{ext}(\mathbf{r})$ represents the external potential (walls + obstacle).
-- $g$ is the interaction constant ($g > 0$ for repulsive interactions).
-- $|\psi|^2$ is the local superfluid density.
+### 2. The "Audit" & Diagnostic Suite
+*   **Energy & Norm Audits:** Continuous tracking of total energy ($E_{tot}$) and particle normalization ($N$) to detect numerical drift or instability.
+*   **Mach-Strouhal Analysis:** Automatically calculates the **Mach Number ($M$)** based on measured upstream density and the **Strouhal Number ($St$)** via peak frequency detection in the drag power spectrum.
+*   **Topological Defect Tracking:** An upstream-thresholded phase-winding counter identifies and counts quantized vortices by calculating the winding number around dense grid plaquettes.
+*   **Absorbing Boundaries:** Uses "Sponge Layers" (Parabolic-Absorbing Potentials) to prevent wave reflection at the edges of the computational domain.
 
-### Potential Landscape
-The total potential $V_{ext}$ is defined as:
-1. **Gaussian Obstacle:** $V_{obs} = A \exp\left(-\frac{(x-x_0)^2 + (y-y_0)^2}{2\sigma^2}\right)$
-2. **Channel Walls:** Rigid potential barriers at $y = \pm L_y/2$.
+---
 
-## Numerical Methodology
+## 📐 The Physics Behind the Machine
 
-### 1. Split-Step Fourier Method (Strang Splitting)
-To evolve the system in time, we use a second-order **Strang Splitting** scheme, which separates the linear and non-linear operators:
-$$e^{-iH\Delta t} \approx e^{-iV \frac{\Delta t}{2}} e^{-iT \Delta t} e^{-iV \frac{\Delta t}{2}}$$
-This method ensures $O(\Delta t^2)$ accuracy and preserves the unitarity (norm) of the wavefunction.
+The system solves the time-dependent **Gross-Pitaevskii Equation (GPE)** in a dimensionless form:
 
-### 2. Spectral Gradient Computation
-Spatial derivatives are calculated in the Fourier domain to achieve spectral accuracy:
-$$\nabla \psi = \mathcal{F}^{-1} \left( i\mathbf{k} \cdot \mathcal{F}(\psi) \right)$$
-This approach is significantly more robust than finite-difference methods for periodic and quasi-periodic systems.
+$$i \frac{\partial \psi(\mathbf{r},t)}{\partial t} = \left[ -\frac{1}{2}\nabla^2 + V_{ext}(\mathbf{r}) + g|\psi(\mathbf{r},t)|^2 \right] \psi(\mathbf{r},t)$$
 
-### 3. JAX Acceleration
-The implementation leverages **XLA (Accelerated Linear Algebra)** via JAX to:
-- **JIT Compile** the time-stepping kernels for hardware-specific optimization.
-- Support **Vectorized Sweeps** across different physical parameters (e.g., varying flow velocity $k_{0x}$).
-- Utilize **float32/complex64** precision for optimal performance on Google TPUs and NVIDIA GPUs.
+### Critical Invariants
+*   **The Sound Speed ($c_s$):** Calculated locally as $c_s = \sqrt{g \cdot n_{upstream}}$, defining the Mach number $M = U/c_s$.
+*   **Quantum Vortex:** A topological defect where the phase $\phi$ winds by $2\pi$:
+    $$\oint \nabla \phi \cdot d\ell = 2\pi n$$
+*   **Drag Force ($F_x$):** Calculated by integrating the density against the gradient of the obstacle potential:
+    $$F_x = -\int \rho(\mathbf{r}) \frac{\partial V_{obs}}{\partial x} d\mathbf{r}$$
 
-## Key Features & Analysis
+---
 
-- **Topological Vortex Counting:** Implements a robust phase-winding algorithm to detect quantized vortices by calculating the circulation $\oint \nabla S \cdot d\ell$ around grid plaquettes.
-- **Drag Force Analysis:** Calculates the analytical drag force $F_x$ exerted on the obstacle by integrating the density-potential gradient product:
-  $$F_x = -\int |\psi|^2 \frac{\partial V_{obs}}{\partial x} d^2\mathbf{r}$$
-- **Strouhal Number Characterization:** Performs Fast Fourier Transform (FFT) on the drag force history to extract the shedding frequency $f$ and calculate the dimensionless Strouhal number:
-  $$St = \frac{f \cdot D}{U}$$
-  where $D$ is the effective diameter and $U$ is the flow velocity.
-- **Multi-Modal Visualization:** Automatic generation of density ($|\psi|^2$), phase (vortex singularities), and vorticity fields.
+## 🛠 Usage Guide
 
-## Installation
-
-Ensure you have a JAX-compatible environment. For GPU/TPU support, follow the [official JAX installation guide](https://github.com/google/jax#installation).
-
+### Installation
+Ensure you have a modern Python environment with JAX installed:
 ```bash
-pip install jax jaxlib matplotlib numpy
+pip install jax jaxlib numpy matplotlib
 ```
 
-## Usage
-
-The simulation is configured via the `Params` dataclass. You can run a parameter sweep (e.g., testing different velocities) directly from the script:
-
-```python
-# Set simulation grid and physics
-params = Params(
-    g=1.0, 
-    dt=2e-4, 
-    Nx=512, 
-    Ny=384,
-    obs_sigma=0.30
-)
-
-# Execute simulation
-results = simulate_once(params, k0x=0.8, A=1.5, n_steps=30000)
+### Running the Monolith
+The script is designed to run a comprehensive sweep (e.g., searching for **Critical Velocity**):
+```bash
+python gpe_2d_q1_monolith_jax.py
 ```
 
-## Results Example
+### Customizing the Experiment
+You can modify the `Params` dataclass within the script to change the physical environment:
+*   `obs_height`: Strength of the obstacle.
+*   `g`: Interaction strength (non-linearity).
+*   `Lx, Ly`: Physical dimensions of the "Quantum Wind Tunnel."
 
-The script outputs high-resolution heatmaps and line plots showing:
-1. **Shedding Frequency vs Velocity:** Identifying the critical velocity for vortex nucleation.
-2. **Vortex Population Dynamics:** Tracking the number of quantized vortices over time.
-3. **Strouhal Maps:** Comparing superfluid hydrodynamics with classical fluid benchmarks.
+---
 
-## Author
+## 📊 Outputs & Artifacts
 
-**Hari Hardiyan**  
-*AI & Physics Enthusiast*  
-📧 [lorozloraz@gmail.com](mailto:lorozloraz@gmail.com)
+The pipeline generates a `summary_monolith.json` and several high-fidelity plots:
+1.  **Strouhal vs. Mach Plot:** Shows the transition from superfluidity to vortex shedding.
+2.  **Drag Time-Series:** Tracks the oscillating force on the obstacle.
+3.  **Phase Snapshots:** Uses the `twilight` cyclic colormap to visualize vortex cores and phase jumps.
+4.  **Audit Logs:** Verification of Energy and Norm stability over time.
 
-I am passionate about the intersection of Artificial Intelligence and Computational Physics, specifically in leveraging machine learning frameworks like JAX to accelerate high-fidelity scientific simulations.
+---
 
-## License
+## 🤝 Citation & Acknowledgement
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+If you find this tool useful for academic reference or curiosity, please cite it as:
 
-***
+```text
+Hardiyan, H. (2026). Superfluid Vortex Dynamics: A Monolithic JAX Diagnostic Pipeline. 
+GitHub Repository: [Your-Repo-Link-Here]
+```
+
+## 📜 License
+
+This project is licensed under the **MIT License**.
+
+```text
+Copyright (c) 2026 Hari Hardiyan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+```
+
+---
+*Disclaimer: This toolkit is provided as-is, born from a passion for the intersection of AI, programming, and the beauty of quantum fluids.*
